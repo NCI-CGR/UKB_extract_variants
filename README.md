@@ -91,10 +91,15 @@ ls JSON/*.json | parallel -j 3 'dx run app-swiss-army-knife -f {} --destination 
 
 ### Wait until all the jobs are completed remotely.
 
+```
+
+![](img/92M.prepare_script_to_extract_pvcf_2022-08-22-13-11-30.png)
+
+
+
 ### Download pVCF files from remote server to your "local" folder.
+```bash
 mkdir pvcf
 
 dx download /ws/UKBB_500K.*.vcf.gz -f -o pvcf/
 ```
-
-![](img/92M.prepare_script_to_extract_pvcf_2022-08-22-13-11-30.png)
