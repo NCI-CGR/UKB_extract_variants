@@ -7,6 +7,8 @@ use File::Spec::Functions;
 
 @ARGV == 5 or die "$0 <pVCF file path> <hg38 gene regions> <pVCF block files> <Targeted gene list> <Output folder> \n";
 
+# ukb23157_cX_b23_v1.vcf.gz
+
 ### The output file in JSON format
 ### dx run app-swiss-army-knife -f input.json --destination "/ws" -y
 # {
@@ -26,6 +28,14 @@ use File::Spec::Functions;
 #         }
 #     ]
 # }
+
+### Note that pvcf is named as X not 23. Therefore I need fix pvcf block file instead
+# ukb23157_cX_b23_v1.vcf.gz
+
+### Need to change chrX:152128341-152138578 too
+# chrX    152128341       152138578       MAGEA10 X:152128341-152138578
+# {"in":[{"$dnanexus_link":{"project":null,"id":null}},{"$dnanexus_link":{"project":null,"id":null}}],"cmd":"bcftools view --regions chrX:152128341-152138578 ukb23157_c23_b21_v1.vcf.gz -O z > UKBB_500K.MAGEA10.0.vcf.gz"}
+
 
 my $UKB_PVCF_PATH = shift;
 my $hg38_reg_fn = shift;
@@ -48,6 +58,13 @@ my %hg38_hash=();
 while(<HG38_REG>){
     chomp;
     my @e = split/\t/;
+
+    # if( $e[0] eq "chrX" || $e[0] eq "chrY"){
+    #     $e[0] =~ s/X/23/;
+    #     $e[4] =~ s/X/23/;
+    #     $e[0] =~ s/Y/24/;
+    #     $e[4] =~ s/Y/24/;
+    # }
     $hg38_hash{$e[3]} = [@e];    
 }
 close HG38_REG;
@@ -69,6 +86,12 @@ open BLOCKS, $block_fn or die $!;
 while(<BLOCKS>){
     chomp;
     my @e = split /\t/;
+
+    if( $e[1] eq "23" ){
+        $e[1] = "X"
+    }elsif( $e[1] eq "24"){
+        $e[1] = 'Y'
+    }
     push @blocks, [@e]; 
 }
 
@@ -128,13 +151,15 @@ sub fn2obj{
 }
 
 ###############################
+# input the target gene name, the reg_hash (from annotation)
+# and blocks (defined by block files 23,24 for X and Y)
 # Return with array: gene, region, [@hits]
 sub find_matches{
     my $gene = shift;
     my $reg_hash = shift;
     my $block_array = shift;
 
-    my $g = $reg_hash->{$gene};
+    my $g = $reg_hash->{$gene}; # hit in the annotation
     my @hits = ();
 
     my @rv = ($gene);
@@ -144,11 +169,19 @@ sub find_matches{
         warn sprintf("There is no gene %s found! \n", $gene);
         push @rv, undef, undef;
     }else{
+        # if($g->[0] eq "chrX"){
+        #     $g->[0]="chr23"
+        # }elsif($g->[0] eq "chrY"){
+        #     $g->[0]="chr24"
+        # }
+
         print join("\t", @{$g})."\n";
         # chr19   58345178        58362751        A1BG    19:58345178-58362751
         
         for my $r (@{$block_array}){
             # 1       1       0       1       1218130
+            # 23 for X
+            # 24 for Y
             my ($id, $chr, $block, $start, $end) = @{$r};
             if( 'chr'.$chr eq $g->[0] && $start <= $g->[2] && $end >= $g->[1] ){
                 push @hits, $r;
